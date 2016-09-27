@@ -70,6 +70,12 @@ class CrmContactQuarantineService {
         fetch("${getRemoteUri()}/${id}?application=${app}&username=${currentUser.username}&tenant=${tenant}")
     }
 
+    def insert(Map params) {
+        Map mutableParams = new HashMap(params)
+        mutableParams.remove('id')
+        update(mutableParams)
+    }
+
     def update(Map params) {
         def id = params.id
         def app = grailsApplication.metadata['app.name']

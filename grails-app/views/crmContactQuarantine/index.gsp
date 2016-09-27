@@ -33,11 +33,11 @@
         <g:each in="${result}" var="obj">
             <tr>
                 <td><g:link action="show" id="${obj.id}">${obj.fullName}</g:link></td>
-                <td><g:link action="show" id="${obj.id}">${obj.email}</g:link></td>
-                <td>${obj.telephone}</td>
-                <td>${obj.address}</td>
-                <td>${obj.target}</td>
-                <td><g:formatDate type="datetime" date="${obj.timestamp ? new Date(obj.timestamp) : null}"/></td>
+                <td class="nowrap"><g:link action="show" id="${obj.id}">${obj.email}</g:link></td>
+                <td class="nowrap">${obj.telephone}</td>
+                <td>${obj.fullAddress}</td>
+                <td class="nowrap">${obj.target}</td>
+                <td class="nowrap"><g:formatDate type="datetime" date="${obj.timestamp ? new Date(obj.timestamp) : null}"/></td>
                 <td>
                     <input type="checkbox" name="id" value="${obj.id}"/>
                 </td>

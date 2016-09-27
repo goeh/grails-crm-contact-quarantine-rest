@@ -22,6 +22,8 @@ import grails.plugins.crm.core.TenantUtils
 import grails.plugins.crm.task.CrmTaskAttender
 import grails.transaction.Transactional
 
+import javax.servlet.http.HttpServletResponse
+
 /**
  * Created by goran on 2016-06-23.
  */
@@ -34,14 +36,30 @@ class CrmContactQuarantineController {
     def crmTrainingService
 
     def index() {
-        def result = crmContactQuarantineService.list()
+        def result
+        try {
+            result = crmContactQuarantineService.list()
+        } catch(Exception e) {
+            response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Quarantine service not available: ${e.message}")
+            return
+        }
         def currentUser = crmSecurityService.currentUser
         [user: currentUser, result: result]
     }
 
     def show(String id) {
         def currentUser = crmSecurityService.currentUser
-        def contact = crmContactQuarantineService.get(id)
+        def contact
+        try {
+            contact = crmContactQuarantineService.get(id)
+        } catch(Exception e) {
+            response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Quarantine service not available: ${e.message}")
+            return
+        }
+        if(! contact) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND)
+            return
+        }
         [user: currentUser, contact: contact, target: identifyTarget(contact)]
     }
 
@@ -53,26 +71,43 @@ class CrmContactQuarantineController {
                 return crmTask
             }
         }
-        return target
+        null
     }
 
     def update() {
-        def contact = crmContactQuarantineService.update(params)
+        def contact
+        try {
+            contact = crmContactQuarantineService.update(params)
+        } catch(Exception e) {
+            response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Quarantine service not available: ${e.message}")
+            return
+        }
         flash.success = "${contact.name} uppdaterad"
         redirect action: 'show', id: params.id
     }
 
     def delete() {
         def selected = params.list('id')
-        for (id in selected) {
-            crmContactQuarantineService.delete(id)
+        try {
+            for (id in selected) {
+                crmContactQuarantineService.delete(id)
+            }
+        } catch(Exception e) {
+            response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Quarantine service not available: ${e.message}")
+            return
         }
         flash.warning = "${selected.size()} st poster raderade"
         redirect action: 'index'
     }
 
     def contacts(String id, String q) {
-        def contact = crmContactQuarantineService.get(id)
+        def contact
+        try {
+            contact = crmContactQuarantineService.get(id)
+        } catch(Exception e) {
+            response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Quarantine service not available: ${e.message}")
+            return
+        }
         def timeout = (grailsApplication.config.crm.quarantine.timeout ?: 60) * 1000
         def result
         if (q) {
@@ -85,7 +120,13 @@ class CrmContactQuarantineController {
     }
 
     def companies(String id, String q) {
-        def contact = crmContactQuarantineService.get(id)
+        def contact
+        try {
+            contact = crmContactQuarantineService.get(id)
+        } catch(Exception e) {
+            response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Quarantine service not available: ${e.message}")
+            return
+        }
         def timeout = (grailsApplication.config.crm.quarantine.timeout ?: 60) * 1000
         def result
         if (q) {
@@ -102,7 +143,13 @@ class CrmContactQuarantineController {
             def m = crmContactService.createCompany(params, true)
             render m as JSON
         } else {
-            def contact = crmContactQuarantineService.get(id)
+            def contact
+            try {
+                contact = crmContactQuarantineService.get(id)
+            } catch(Exception e) {
+                response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Quarantine service not available: ${e.message}")
+                return
+            }
             render template: 'createCompany', model: [bean: contact]
         }
     }
@@ -117,7 +164,13 @@ class CrmContactQuarantineController {
             def m = crmContactService.createPerson(params, true)
             render m as JSON
         } else {
-            def contact = crmContactQuarantineService.get(id)
+            def contact
+            try {
+                contact = crmContactQuarantineService.get(id)
+            } catch(Exception e) {
+                response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Quarantine service not available: ${e.message}")
+                return
+            }
             def roles = crmContactService.listRelationType(null)
             render template: 'createPerson', model: [bean: contact, company: related, roles: roles]
         }
@@ -138,13 +191,20 @@ class CrmContactQuarantineController {
             m.bookingDate = bookingDate
             render m as JSON
         } else {
-            def contact = crmContactQuarantineService.get(id)
+            def contact
+            try {
+                contact = crmContactQuarantineService.get(id)
+            } catch(Exception e) {
+                response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Quarantine service not available: ${e.message}")
+                return
+            }
+            def crmTask = task != null ? crmTaskService.getTask(task) : null
             def crmTaskAttender = new CrmTaskAttender(contact: related, bookingDate: contact.timestamp)
             def events = crmTrainingService.listTrainingEvents([fromDate: new Date() - 7], [max: 10, sort: 'startTime', order: 'asc'])
             def bookingList = events.bookings.flatten()
             def statusList = crmTaskService.listAttenderStatus()
             render template: 'createBooking',
-                    model: [bean        : contact, crmTaskAttender: crmTaskAttender,
+                    model: [bean        : contact, crmTask: crmTask, crmTaskAttender: crmTaskAttender,
                             statusList  : statusList, bookingList: bookingList,
                             trainingList: events]
         }
@@ -159,7 +219,13 @@ class CrmContactQuarantineController {
             if (!params.name) {
                 params.name = 'Ny aktivitet'
             }
-            def contact = crmContactQuarantineService.get(id)
+            def contact
+            try {
+                contact = crmContactQuarantineService.get(id)
+            } catch(Exception e) {
+                response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Quarantine service not available: ${e.message}")
+                return
+            }
             def crmTask = crmTaskService.createTask(params, false)
             def typeList = crmTaskService.listTaskTypes()
             def timeList = (7..19).inject([]) { list, h ->

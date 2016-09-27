@@ -15,7 +15,7 @@
             <label class="control-label"><g:message code="crmTaskBooking.task.label" /></label>
 
             <div class="controls">
-                <g:select name="task" from="${trainingList}" optionKey="id" style="width: 90%;"/>
+                <g:select name="task" from="${trainingList}" value="${crmTask?.id}" optionKey="id" style="width: 90%;"/>
             </div>
         </div>
 
