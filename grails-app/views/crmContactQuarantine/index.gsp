@@ -1,4 +1,4 @@
-<%@ page contentType="text/html;charset=UTF-8" %>
+<%@ page import="org.apache.commons.lang.StringUtils" contentType="text/html;charset=UTF-8" %>
 <html>
 <head>
     <meta name="layout" content="main"/>
@@ -35,7 +35,7 @@
                 <td><g:link action="show" id="${obj.id}">${obj.fullName}</g:link></td>
                 <td class="nowrap"><g:link action="show" id="${obj.id}">${obj.email}</g:link></td>
                 <td class="nowrap">${obj.telephone}</td>
-                <td>${obj.fullAddress}</td>
+                <td>${StringUtils.truncate(obj.fullAddress ?: '', 50)}</td>
                 <td class="nowrap">${obj.target}</td>
                 <td class="nowrap"><g:formatDate type="datetime" date="${obj.timestamp ? new Date(obj.timestamp) : null}"/></td>
                 <td>
