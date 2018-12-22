@@ -12,13 +12,18 @@
           };
         })();
         var crmContactQuarantine = {
-            loadCompanies: function(q) {
+            loadCompanies: function(q, selected) {
                 if(!q) q = '';
-                $('#company-container tbody').load("${createLink(action: 'companies', id: contact.id)}?q=" + q);
+                if(!selected) selected = '';
+                $('#company-container tbody').load("${createLink(action: 'companies', id: contact.id)}?s=" + selected + "&q=" + q);
             },
-            loadContacts: function(q) {
+            loadContacts: function(q, selected) {
                 if(!q) q = '';
-                $('#person-container tbody').load("${createLink(action: 'contacts', id: contact.id)}?q=" + q);
+                if(!selected) selected = '';
+                $('#person-container tbody').load("${createLink(action: 'contacts', id: contact.id)}?s=" + selected + "&q=" + q);
+            },
+            loadResult: function() {
+                $('#result-container tbody').load("${createLink(action: 'result', id: contact.id)}");
             }
         };
         $(document).ready(function () {
@@ -36,7 +41,8 @@
                             data: $form.serialize(),
                             success: function (data) {
                                 $modal.modal('hide');
-                                crmContactQuarantine.loadCompanies(null);
+                                crmContactQuarantine.loadCompanies(null, data.id);
+                                crmContactQuarantine.loadResult();
                             },
                             error: function(data) {
                                 alert("Error " + data);
@@ -60,7 +66,8 @@
                             data: $form.serialize(),
                             success: function (data) {
                                 $modal.modal('hide');
-                                crmContactQuarantine.loadContacts(null);
+                                crmContactQuarantine.loadContacts(null, data.id);
+                                crmContactQuarantine.loadResult();
                             },
                             error: function(data) {
                                 alert("Error " + data);
@@ -76,7 +83,7 @@
                 if(! selectedContact) {
                     return;
                 }
-                $modal.load("${createLink(action: 'createBooking', params: [id: contact.id, task: target?.id])}?person=" + selectedContact, function() {
+                $modal.load("${createLink(action: 'createBooking', params: [id: contact.id, task: target?.id])}&person=" + selectedContact, function() {
                     $modal.modal('show');
                     $('form', $modal).submit(function(ev) {
                         ev.preventDefault();
@@ -87,7 +94,7 @@
                             data: $form.serialize(),
                             success: function (data) {
                                 $modal.modal('hide');
-                                //crmContactQuarantine.loadContacts(null);
+                                crmContactQuarantine.loadResult();
                             },
                             error: function(data) {
                                 alert("Error " + data);
@@ -99,8 +106,28 @@
             $('button[name="_action_task"]').click(function (ev) {
                 ev.preventDefault();
                 var $modal = $('#modal-container');
-                $modal.load("${createLink(action: 'createTask', id: contact.id)}", function() {
+                var selectedContact = $('input[name="person"]:checked').val();
+                if(! selectedContact) {
+                    return;
+                }
+                $modal.load("${createLink(action: 'createTask', params: [id: contact.id])}?person=" + selectedContact, function() {
                     $modal.modal('show');
+                    $('form', $modal).submit(function(ev) {
+                        ev.preventDefault();
+                        var $form = $(this);
+                        $.ajax({
+                            type: $form.attr('method'),
+                            url: $form.attr('action'),
+                            data: $form.serialize(),
+                            success: function (data) {
+                                $modal.modal('hide');
+                                crmContactQuarantine.loadResult();
+                            },
+                            error: function(data) {
+                                alert("Error " + data);
+                            }
+                        });
+                    });
                 });
             });
 
@@ -136,8 +163,9 @@
                 }, 750 );
             });
 
-            crmContactQuarantine.loadContacts(null);
-            crmContactQuarantine.loadCompanies(null);
+            crmContactQuarantine.loadContacts();
+            crmContactQuarantine.loadCompanies();
+            crmContactQuarantine.loadResult();
         });
     </r:script>
     <style type="text/css">
@@ -239,9 +267,10 @@
         <div class="span7">
             <div class="row-fluid">
 
-                <h4>Matchande personer</h4>
-
                 <div id="person-container">
+
+                    <h4>Matchande personer</h4>
+
                     <table class="table">
                         <thead>
                             <tr>
@@ -265,9 +294,10 @@
                     </table>
                 </div>
 
-                <h4>Matchande företag</h4>
-
                 <div id="company-container">
+
+                    <h4>Matchande företag</h4>
+
                     <table class="table">
                         <thead>
                             <tr>
@@ -291,6 +321,14 @@
                     </table>
                 </div>
 
+                <div id="result-container">
+
+                    <h4>Resultat</h4>
+
+                    <table class="table">
+                        <tbody></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>

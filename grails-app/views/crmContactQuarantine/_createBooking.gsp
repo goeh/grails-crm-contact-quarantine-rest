@@ -1,12 +1,12 @@
 <g:form action="createBooking">
 
     <input type="hidden" name="id" value="${bean.id}"/>
-    <input type="hidden" name="person" value="${crmTaskAttender.contactId}"/>
+    <input type="hidden" name="person" value="${person?.id}"/>
 
     <div class="modal-header">
         <a class="close" data-dismiss="modal">×</a>
 
-        <h3>Boka - ${crmTaskAttender}</h3>
+        <h3>Boka - ${person?.fullName}</h3>
     </div>
 
     <div class="modal-body" style="overflow: auto;">

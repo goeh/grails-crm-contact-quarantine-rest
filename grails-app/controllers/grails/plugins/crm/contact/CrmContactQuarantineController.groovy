@@ -19,10 +19,12 @@ package grails.plugins.crm.contact
 import grails.converters.JSON
 import grails.plugins.crm.core.DateUtils
 import grails.plugins.crm.core.TenantUtils
+import grails.plugins.crm.task.CrmTask
 import grails.plugins.crm.task.CrmTaskAttender
 import grails.transaction.Transactional
 
 import javax.servlet.http.HttpServletResponse
+import javax.servlet.http.HttpSession
 
 /**
  * Created by goran on 2016-06-23.
@@ -100,7 +102,7 @@ class CrmContactQuarantineController {
         redirect action: 'index'
     }
 
-    def contacts(String id, String q) {
+    def contacts(String id, Long s, String q) {
         def contact
         try {
             contact = crmContactQuarantineService.get(id)
@@ -111,15 +113,15 @@ class CrmContactQuarantineController {
         def timeout = (grailsApplication.config.crm.quarantine.timeout ?: 60) * 1000
         def result
         if (q) {
-            result = crmContactService.list([name: q], [max: 100])*.dao
+            result = crmContactService.list([person: true, name: q], [max: 100])*.dao
         } else {
             result = event(for: 'quarantine', topic: 'duplicates',
                     data: [tenant: TenantUtils.tenant, person: contact]).waitFor(timeout)?.value
         }
-        render template: 'contacts', model: [list: result]
+        render template: 'contacts', model: [list: result, selected: s]
     }
 
-    def companies(String id, String q) {
+    def companies(String id, Long s, String q) {
         def contact
         try {
             contact = crmContactQuarantineService.get(id)
@@ -130,17 +132,26 @@ class CrmContactQuarantineController {
         def timeout = (grailsApplication.config.crm.quarantine.timeout ?: 60) * 1000
         def result
         if (q) {
-            result = crmContactService.list([name: q], [max: 100])*.dao
+            result = crmContactService.list([company: true, name: q], [max: 100])*.dao
         } else {
             result = event(for: 'quarantine', topic: 'duplicates',
                     data: [tenant: TenantUtils.tenant, company: contact]).waitFor(timeout)?.value
         }
-        render template: 'companies', model: [list: result]
+        render template: 'companies', model: [list: result, selected: s]
+    }
+
+    def result(String id) {
+        render template: 'result', model: [result: getResult(request.session, id)]
     }
 
     def createCompany(String id) {
         if (request.post) {
             def m = crmContactService.createCompany(params, true)
+            if(m.hasErrors()) {
+                m = [error: true, errors: m.errors.allErrors]
+            } else {
+                addResult(request.session, id, m.toString(), [controller: 'crmContact', action: 'show', params: [id: m.id]])
+            }
             render m as JSON
         } else {
             def contact
@@ -162,6 +173,11 @@ class CrmContactQuarantineController {
                 params.related = [related, role]
             }
             def m = crmContactService.createPerson(params, true)
+            if(m.hasErrors()) {
+                m = [error: true, errors: m.errors.allErrors]
+            } else {
+                addResult(request.session, id, m.toString(), [controller: 'crmContact', action: 'show', params: [id: m.id]])
+            }
             render m as JSON
         } else {
             def contact
@@ -189,6 +205,11 @@ class CrmContactQuarantineController {
             }
             def m = crmTaskService.addAttender(crmTaskBooking, related, status, params.comments)
             m.bookingDate = bookingDate
+            if(m.save()) {
+                addResult(request.session, id, crmTask.toString(), [controller: 'crmTaskAttender', action: 'show', params: [id: m.id]])
+            } else {
+                m = [error: true, errors: m.errors.allErrors]
+            }
             render m as JSON
         } else {
             def contact
@@ -204,16 +225,26 @@ class CrmContactQuarantineController {
             def bookingList = events.bookings.flatten()
             def statusList = crmTaskService.listAttenderStatus()
             render template: 'createBooking',
-                    model: [bean        : contact, crmTask: crmTask, crmTaskAttender: crmTaskAttender,
+                    model: [bean        : contact, crmTask: crmTask, crmTaskAttender: crmTaskAttender, person: related,
                             statusList  : statusList, bookingList: bookingList,
                             trainingList: events]
         }
     }
 
     @Transactional
-    def createTask(String id) {
+    def createTask(String id, Long person) {
+        def related = person ? crmContactService.getContact(person) : null
         if (request.post) {
-            def m = crmTaskService.createTask(params, true)
+            def startDate = params.remove('startDate') ?: formatDate(type: 'date', date: new Date() + 1)
+            def startTime = params.remove('startTime') ?: crmTaskService.getDefaultStartTime()
+            def m = crmTaskService.createTask(params, false)
+            def user = crmSecurityService.getUserInfo(params.username)
+            bindDate(m, 'startTime', startDate + ' ' + startTime, user?.timezone)
+            if(m.save()) {
+                addResult(request.session, id, m.toString(), [controller: 'crmTask', action: 'show', params: [id: m.id]])
+            } else {
+                m = [error: true, errors: m.errors.allErrors]
+            }
             render m as JSON
         } else {
             if (!params.name) {
@@ -234,8 +265,33 @@ class CrmContactQuarantineController {
                 }; list
             }
             timeList = [''] + timeList.sort()
-            render template: 'createTask', model: [bean    : contact, crmTask: crmTask,
+            render template: 'createTask', model: [bean    : contact, crmTask: crmTask, person: related,
                                                    typeList: typeList, timeList: timeList]
         }
+    }
+
+    private void bindDate(CrmTask crmTask, String property, String value, TimeZone timezone = null) {
+        if (value) {
+            try {
+                crmTask[property] = DateUtils.parseDateTime(value, timezone ?: TimeZone.default)
+            } catch (Exception e) {
+                log.error("error", e)
+                def entityName = message(code: 'crmTask.label', default: 'Task')
+                def propertyName = message(code: 'crmTask.' + property + '.label', default: property)
+                crmTask.errors.rejectValue(property, 'default.invalid.date.message', [propertyName, entityName, value.toString(), e.message].toArray(), "Invalid date: {2}")
+            }
+        } else {
+            crmTask[property] = null
+        }
+    }
+
+    private void addResult(HttpSession session, String id, String label, Map linkParams) {
+        def map = session[id] ?: [:]
+        map[linkParams] = label
+        session[id] = map
+    }
+
+    private Map getResult(HttpSession session, String id) {
+        return session[id] ?: [:]
     }
 }

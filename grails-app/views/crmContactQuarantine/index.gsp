@@ -35,7 +35,7 @@
                 <td><g:link action="show" id="${obj.id}">${obj.fullName}</g:link></td>
                 <td class="nowrap"><g:link action="show" id="${obj.id}">${obj.email}</g:link></td>
                 <td class="nowrap">${obj.telephone}</td>
-                <td>${StringUtils.truncate(obj.fullAddress ?: '', 50)}</td>
+                <td>${StringUtils.abbreviate(obj.fullAddress ?: '', 50)}</td>
                 <td class="nowrap">${obj.target}</td>
                 <td class="nowrap"><g:formatDate type="datetime" date="${obj.timestamp ? new Date(obj.timestamp) : null}"/></td>
                 <td>

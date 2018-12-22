@@ -1,6 +1,7 @@
 <g:form action="createTask">
 
     <input type="hidden" name="id" value="${bean.id}"/>
+    <input type="hidden" name="reference" value="crmContact@${person?.id}"/>
 
     <div class="modal-header">
         <a class="close" data-dismiss="modal">×</a>
@@ -32,12 +33,12 @@
 
              <div class="controls">
                  <div class="input-append date">
-                     <g:textField name="startTime" size="10" style="width: 70%;"
+                     <g:textField name="startDate" size="10" style="width: 70%;"
                                   value="${formatDate(type: 'date', date: crmTask.startTime ?: new Date() + 1)}"/><span
                          class="add-on"><i class="icon-th"></i></span>
                  </div>
 
-                 <g:select name="inspectionTime" from="${timeList}" value="09:00"
+                 <g:select name="startTime" from="${timeList}" value="09:00"
                            style="margin-left: 5px; width: 20%"/>
              </div>
          </div>
