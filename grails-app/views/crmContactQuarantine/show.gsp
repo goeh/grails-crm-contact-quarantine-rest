@@ -192,6 +192,8 @@
 </header>
 
 <g:form>
+    <input type="hidden" name="target" value="${contact.target ?: ''}"/>
+
     <div class="row-fluid">
         <div class="span5">
             <div class="row-fluid">

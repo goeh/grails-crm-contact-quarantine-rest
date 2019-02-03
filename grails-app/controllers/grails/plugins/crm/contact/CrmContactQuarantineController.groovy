@@ -46,7 +46,7 @@ class CrmContactQuarantineController {
             return
         }
         def currentUser = crmSecurityService.currentUser
-        [user: currentUser, result: result]
+        [user: currentUser, result: result.sort{it.timestamp}.reverse()]
     }
 
     def show(String id) {
@@ -115,8 +115,9 @@ class CrmContactQuarantineController {
         if (q) {
             result = crmContactService.list([person: true, name: q], [max: 100])*.dao
         } else {
+            def currentUser = crmSecurityService.currentUser
             result = event(for: 'quarantine', topic: 'duplicates',
-                    data: [tenant: TenantUtils.tenant, person: contact]).waitFor(timeout)?.value
+                    data: [user: currentUser, tenant: TenantUtils.tenant, person: contact]).waitFor(timeout)?.value
         }
         render template: 'contacts', model: [list: result, selected: s]
     }
@@ -134,8 +135,9 @@ class CrmContactQuarantineController {
         if (q) {
             result = crmContactService.list([company: true, name: q], [max: 100])*.dao
         } else {
+            def currentUser = crmSecurityService.currentUser
             result = event(for: 'quarantine', topic: 'duplicates',
-                    data: [tenant: TenantUtils.tenant, company: contact]).waitFor(timeout)?.value
+                    data: [user: currentUser, tenant: TenantUtils.tenant, company: contact]).waitFor(timeout)?.value
         }
         render template: 'companies', model: [list: result, selected: s]
     }
