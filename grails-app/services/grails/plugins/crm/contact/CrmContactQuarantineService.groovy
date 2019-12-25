@@ -47,12 +47,19 @@ class CrmContactQuarantineService {
     }
 
     private Object fetch(String url) {
+        def headers = ['Connection': 'close', 'User-Agent': USER_AGENT]
+        if(grailsApplication.config.crm.contact.quarantine.username) {
+            def username = grailsApplication.config.crm.contact.quarantine.username
+            def password = grailsApplication.config.crm.contact.quarantine.password
+            def authString = "${username}:${password}".toString().getBytes().encodeBase64().toString()
+            headers.Authorization = "Basic $authString"
+        }
         String data = new URL(url)
                 .getText(connectTimeout: 5000,
                 readTimeout: 10000,
                 useCaches: true,
                 allowUserInteraction: false,
-                requestProperties: ['Connection': 'close', 'User-Agent': USER_AGENT])
+                requestProperties: headers)
         return data ? new JsonSlurper().parseText(data) : null
     }
 
@@ -82,6 +89,8 @@ class CrmContactQuarantineService {
         def version = grailsApplication.metadata['app.version']
         def tenant = TenantUtils.tenant
         def currentUser = crmSecurityService.currentUser
+        def username = grailsApplication.config.crm.contact.quarantine.username
+        def password = grailsApplication.config.crm.contact.quarantine.password
         def rval
 
         params.tenant = tenant
@@ -101,6 +110,10 @@ class CrmContactQuarantineService {
             http.request(Method.POST, ContentType.APPLICATION_JSON) {
                 headers.'User-Agent' = "$app/$version"
                 headers.Accept = ContentType.APPLICATION_JSON.toString()
+                if(username && password) {
+                    def authString = "${username}:${password}".toString().getBytes().encodeBase64().toString()
+                    headers.Authorization = "Basic $authString".toString()
+                }
                 body = params
                 response.success = { resp, data ->
                     rval = data
@@ -118,6 +131,9 @@ class CrmContactQuarantineService {
         def version = grailsApplication.metadata['app.version']
         def tenant = TenantUtils.tenant
         def currentUser = crmSecurityService.currentUser
+        def username = grailsApplication.config.crm.contact.quarantine.username
+        def password = grailsApplication.config.crm.contact.quarantine.password
+
         def http = new HTTPBuilder("${getRemoteUri()}/$id?application=${app}&username=${currentUser.username}&tenant=${tenant}")
         try {
             def httpParams = http.getClient().getParams()
@@ -126,6 +142,10 @@ class CrmContactQuarantineService {
             http.request(Method.DELETE) {
                 headers.'User-Agent' = "$app/$version"
                 headers.Accept = ContentType.APPLICATION_JSON.toString()
+                if(username && password) {
+                    def authString = "${username}:${password}".toString().getBytes().encodeBase64().toString()
+                    headers.Authorization = "Basic $authString".toString()
+                }
                 response.success = { resp, data ->
                     rval = data
                 }
